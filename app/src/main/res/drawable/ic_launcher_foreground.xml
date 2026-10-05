@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Chat bubble -->
+    <path android:fillColor="#FFFFFF"
+        android:pathData="M34,32h40a8,8 0,0 1,8 8v24a8,8 0,0 1,-8 8h-24l-11,9v-9h-5a8,8 0,0 1,-8 -8v-24a8,8 0,0 1,8 -8z" />
+    <!-- Flame -->
+    <path android:fillColor="#E8772E"
+        android:pathData="M55,37c7,6 11,11.5 11,17.5a12,12 0,0 1,-24 0c0,-4.5 2.5,-8 6,-11c0,4.5 2,7 4.5,7c0,-5.5 -1,-9.5 2.5,-13.5z" />
+    <path android:fillColor="#FFB46B"
+        android:pathData="M54.5,50c3,3 5,5.5 5,8.5a5,5 0,0 1,-10 0c0,-2.5 1.5,-4.5 3,-6c0.5,2 1,2.5 2,2.5c0,-2 -0.5,-3.5 0,-5z" />
+</vector>
