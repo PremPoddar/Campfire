@@ -232,4 +232,12 @@ class ChatStateTest {
         assertThat(chat.message(m.id)!!.preview).isNull()
         assertThat(chat.applyPreview(m.id, LinkPreview("https://example.com/a", "Late"))).isEmpty()
     }
+
+    @Test fun hostAppCanCloseRoomsButNotPublic() {
+        chat.handle(asha.id, ClientCommand.CreateRoom("Snacks", null), 0)
+        val id = chat.rooms().single { it.name == "Snacks" }.id
+        assertThat(chat.adminCloseRoom(id).map { it.event }.filterIsInstance<ServerEvent.RoomClosed>()).hasSize(1)
+        assertThat(chat.room(id)).isNull()
+        assertThat(chat.adminCloseRoom(PUBLIC_ROOM)).isEmpty()
+    }
 }

@@ -182,8 +182,18 @@ class ChatState(
     private fun closeRoom(me: Member, roomId: String): List<Delivery> {
         val room = rooms[roomId] ?: return error(me, "not_found", "That room no longer exists.")
         if (room.id == PUBLIC_ROOM || !isAdmin(me, room)) return notAllowed(me)
-        rooms.remove(roomId)
-        val conv = Conv.room(roomId)
+        return close(room)
+    }
+
+    /** Closes a room on behalf of the host app, which may not have joined the chat itself. */
+    fun adminCloseRoom(roomId: String): List<Delivery> {
+        val room = rooms[roomId]?.takeIf { it.id != PUBLIC_ROOM } ?: return emptyList()
+        return close(room)
+    }
+
+    private fun close(room: Room): List<Delivery> {
+        rooms.remove(room.id)
+        val conv = Conv.room(room.id)
         messages.remove(conv)?.forEach { convOf.remove(it.id) }
         reads.remove(conv)
         return listOf(
