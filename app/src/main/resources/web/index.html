@@ -1,2 +1,23 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Campfire</title></head><body></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#F3F5F4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0D1412" media="(prefers-color-scheme: dark)">
+  <title>Campfire</title>
+  <link rel="icon" id="favicon" href="icon.svg" type="image/svg+xml">
+  <link rel="preload" href="fonts/figtree.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="app.css">
+  <script>
+    // Apply the saved theme before first paint so dark mode never flashes white.
+    try { const t = localStorage.getItem('campfire.theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t } catch (e) {}
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+  <noscript>Campfire needs JavaScript turned on.</noscript>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

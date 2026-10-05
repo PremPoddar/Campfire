@@ -12,6 +12,7 @@ import io.ktor.server.cio.CIO
 import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.http.content.LocalFileContent
+import io.ktor.server.http.content.staticFiles
 import io.ktor.server.http.content.staticResources
 import io.ktor.server.plugins.autohead.AutoHeadResponse
 import io.ktor.server.plugins.origin
@@ -42,6 +43,7 @@ class CampfireServer(
     private val port: Int,
     private val serverName: String,
     filesDir: File,
+    private val webDir: File? = null,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val files = FileStore(filesDir)
@@ -52,7 +54,7 @@ class CampfireServer(
     fun start() {
         files.wipe()
         engine = embeddedServer(CIO, port = port, host = "0.0.0.0") {
-            campfire(hub, files, serverName)
+            campfire(hub, files, serverName, webDir)
         }.start(wait = false)
     }
 
@@ -65,7 +67,8 @@ class CampfireServer(
     }
 }
 
-fun Application.campfire(hub: Hub, files: FileStore, serverName: String) {
+/** [webDir] serves the client from disk instead of the APK; only used while developing. */
+fun Application.campfire(hub: Hub, files: FileStore, serverName: String, webDir: File? = null) {
     install(WebSockets) {
         pingPeriod = 15.seconds
         timeout = 30.seconds
@@ -75,7 +78,7 @@ fun Application.campfire(hub: Hub, files: FileStore, serverName: String) {
     install(AutoHeadResponse)
 
     routing {
-        staticResources("/", "web")
+        if (webDir != null) staticFiles("/", webDir) else staticResources("/", "web")
 
         get("/api/info") {
             call.respondText(buildJsonObject { put("name", serverName) }.toString(), ContentType.Application.Json)
