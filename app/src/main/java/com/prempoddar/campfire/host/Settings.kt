@@ -3,6 +3,8 @@ package com.prempoddar.campfire.host
 import android.content.Context
 import android.provider.Settings as SystemSettings
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import com.prempoddar.campfire.ui.design.Appearance
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -10,12 +12,12 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-enum class ThemeMode { SYSTEM, LIGHT, DARK }
-
 data class HostSettings(
     val serverName: String,
     val port: Int = DEFAULT_PORT,
-    val theme: ThemeMode = ThemeMode.SYSTEM,
+    val appearance: Appearance = Appearance(),
+    /** What the host is called in the chat. */
+    val hostName: String = "",
 ) {
     companion object {
         const val DEFAULT_PORT = 8080
@@ -30,6 +32,10 @@ class SettingsRepository(private val context: Context) {
         val name = stringPreferencesKey("name")
         val port = intPreferencesKey("port")
         val theme = stringPreferencesKey("theme")
+        val dynamic = booleanPreferencesKey("dynamic")
+        val accent = intPreferencesKey("accent")
+        val black = booleanPreferencesKey("pure_black")
+        val hostName = stringPreferencesKey("host_name")
     }
 
     /** "Pixel 8's Campfire", from the phone's own name. */
@@ -46,13 +52,23 @@ class SettingsRepository(private val context: Context) {
             val next = transform(p.toSettings())
             p[Keys.name] = next.serverName
             p[Keys.port] = next.port
-            p[Keys.theme] = next.theme.name
+            p[Keys.theme] = next.appearance.mode.name
+            p[Keys.dynamic] = next.appearance.dynamic
+            p[Keys.black] = next.appearance.pureBlack
+            next.appearance.accent?.let { p[Keys.accent] = it } ?: p.remove(Keys.accent)
+            p[Keys.hostName] = next.hostName
         }
     }
 
     private fun Preferences.toSettings() = HostSettings(
         serverName = this[Keys.name]?.takeIf { it.isNotBlank() } ?: defaultName,
         port = this[Keys.port]?.takeIf { it in HostSettings.PORTS } ?: HostSettings.DEFAULT_PORT,
-        theme = this[Keys.theme]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.SYSTEM,
+        appearance = Appearance(
+            mode = this[Keys.theme]?.let { runCatching { Appearance.Mode.valueOf(it) }.getOrNull() } ?: Appearance.Mode.SYSTEM,
+            dynamic = this[Keys.dynamic] ?: false,
+            accent = this[Keys.accent],
+            pureBlack = this[Keys.black] ?: false,
+        ),
+        hostName = this[Keys.hostName].orEmpty(),
     )
 }

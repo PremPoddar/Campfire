@@ -6,5 +6,6 @@ class CampfireApp : Application() {
     override fun onCreate() {
         super.onCreate()
         AppGraph.init(this)
+        AppGraph.chat.start()
     }
 }

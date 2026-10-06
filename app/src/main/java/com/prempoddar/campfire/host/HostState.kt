@@ -13,6 +13,7 @@ sealed interface HostState {
         val port: Int,
         val addresses: List<LanAddress>,
         val hub: Hub,
+        val startedAt: Long = System.currentTimeMillis(),
     ) : HostState {
         val primaryUrl: String? get() = addresses.firstOrNull()?.url(port)
         val localChatUrl: String get() = "http://127.0.0.1:$port/#host=${hub.hostToken}"
