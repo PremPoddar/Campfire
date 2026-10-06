@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed-icon silhouette: logs and flame, the inner flame cut out. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <group android:scaleX="0.92" android:scaleY="0.92" android:pivotX="54" android:pivotY="56">
+        <group android:rotation="-14" android:pivotX="54" android:pivotY="76">
+            <path android:fillColor="#FFFFFF" android:pathData="M34.5,72h39a4.5,4.5 0 0,1 0,9h-39a4.5,4.5 0 0,1 0,-9z" />
+        </group>
+        <group android:rotation="14" android:pivotX="54" android:pivotY="76">
+            <path android:fillColor="#FFFFFF" android:pathData="M34.5,72h39a4.5,4.5 0 0,1 0,9h-39a4.5,4.5 0 0,1 0,-9z" />
+        </group>
+        <path android:fillColor="#FFFFFF" android:fillType="evenOdd"
+            android:pathData="M54,28c5,10 16,16 16,30a16,16 0 0,1 -32,0c0,-8 5,-11 7,-17c2,4 4,6 6,7c-1,-7 0,-14 3,-20z M54,48c3,5 7,8 7,13a7,7 0 0,1 -14,0c0,-4 2,-5 4,-8c1,2 2,3 3,3c0,-3 0,-6 0,-8z" />
+    </group>
+</vector>
