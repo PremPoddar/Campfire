@@ -76,6 +76,9 @@ dependencies {
     implementation(libs.ktor.server.websockets)
     implementation(libs.ktor.server.partial.content)
     implementation(libs.ktor.server.auto.head.response)
+    // The host's own chat talks to its server like any browser.
+    implementation(libs.ktor.client.cio)
+    implementation(libs.ktor.client.websockets)
     implementation(libs.zxing.core)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
@@ -83,5 +86,4 @@ dependencies {
     testImplementation(libs.truth)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.ktor.server.test.host)
-    testImplementation(libs.ktor.client.websockets)
 }

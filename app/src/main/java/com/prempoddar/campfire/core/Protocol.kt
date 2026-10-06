@@ -168,4 +168,10 @@ object Protocol {
 
     fun decodeCommand(text: String): ClientCommand? =
         runCatching { json.decodeFromString(ClientCommand.serializer(), text) }.getOrNull()
+
+    // The other direction, for the host's own chat in the app.
+    fun encode(command: ClientCommand): String = json.encodeToString(ClientCommand.serializer(), command)
+
+    fun decodeEvent(text: String): ServerEvent? =
+        runCatching { json.decodeFromString(ServerEvent.serializer(), text) }.getOrNull()
 }
