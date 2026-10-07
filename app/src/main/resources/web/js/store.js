@@ -44,6 +44,9 @@ export function setState(patch) {
   }
 }
 
+/** Calls [l] after every state change; returns a function that stops it. */
+export function subscribe(l) { listeners.add(l); return () => listeners.delete(l) }
+
 export function useStore() {
   const [, force] = useState(0)
   const seen = state
@@ -108,7 +111,8 @@ export function applyEvent(ev, hooks) {
           convs[c.conv] = { messages: old?.messages || (c.last ? [c.last] : []), loaded: false, receipts: old?.receipts || {}, unread: c.unread }
         })
         const members = Object.fromEntries(ev.members.map((m) => [m.id, m]))
-        const active = s.active && convs[s.active] ? s.active : PUBLIC
+        // First join opens Public; a reconnect keeps you where you were, chat list included.
+        const active = s.active && convs[s.active] ? s.active : (s.me ? null : PUBLIC)
         return { status: 'ready', me: ev.you, token: ev.token, serverName: ev.serverName, rooms: ev.rooms, members, known: { ...s.known, ...members }, convs, active, joinError: '' }
       })
       hooks.afterWelcome()

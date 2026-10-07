@@ -240,4 +240,25 @@ class ChatStateTest {
         assertThat(chat.room(id)).isNull()
         assertThat(chat.adminCloseRoom(PUBLIC_ROOM)).isEmpty()
     }
+
+    @Test fun aReturningPersonGetsTheirOwnSeatBack() {
+        val (asha, _) = chat.join("Asha", 2, false)!!
+        chat.setOnline(asha.id, true); chat.setOnline(asha.id, false)
+        val (back, _) = chat.reclaim(asha.id, "Asha R")!!
+        assertThat(back.id).isEqualTo(asha.id)
+        assertThat(back.token).isEqualTo(asha.token)
+        assertThat(back.name).isEqualTo("Asha R")
+        assertThat(chat.resume(asha.token)!!.name).isEqualTo("Asha R")
+    }
+
+    @Test fun cantReclaimSomeoneOnlineRemovedOrTheHost() {
+        val (asha, _) = chat.join("Asha", 2, false)!!
+        chat.setOnline(asha.id, true)
+        assertThat(chat.reclaim(asha.id, "Asha")).isNull()
+        val (host, _) = chat.join("Host", 0, true)!!
+        assertThat(chat.reclaim(host.id, "Host")).isNull()
+        val (ben, _) = chat.join("Ben", 1, false)!!
+        chat.removeFromServer(ben.id)
+        assertThat(chat.reclaim(ben.id, "Ben")).isNull()
+    }
 }

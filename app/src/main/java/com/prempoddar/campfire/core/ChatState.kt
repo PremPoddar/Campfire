@@ -66,6 +66,21 @@ class ChatState(
         return member to listOf(toAll(ServerEvent.Members(memberInfos())), toAll(ServerEvent.Rooms(roomInfos())))
     }
 
+    /**
+     * Gives an offline person their seat back when they return without their token (they left,
+     * or opened a fresh tab): same id, history and rooms; the name is updated if they typed a new one.
+     */
+    fun reclaim(memberId: String, name: String): Pair<Member, List<Delivery>>? {
+        val m = member(memberId) ?: return null
+        if (m.isHost || memberId in online) return null
+        val clean = Names.clean(name, 32) ?: return null
+        if (clean == m.name) return m to emptyList()
+        val taken = members.values.filter { it.id !in removed && it.id != memberId }.map { it.name }.toSet()
+        val renamed = m.copy(name = Names.dedupe(clean, taken))
+        members[memberId] = renamed
+        return renamed to listOf(toAll(ServerEvent.Members(memberInfos())))
+    }
+
     fun resume(token: String): Member? = members.values.firstOrNull { it.token == token && it.id !in removed }
 
     fun setOnline(memberId: String, isOnline: Boolean): List<Delivery> {

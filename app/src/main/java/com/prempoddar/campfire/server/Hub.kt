@@ -83,9 +83,12 @@ class Hub(
 
     private suspend fun hello(cmd: ClientCommand.Hello, ip: String, outbox: Channel<String>, socket: DefaultWebSocketSession): Connection? =
         lock.withLock {
+            val isHost = cmd.hostToken != null && cmd.hostToken == hostToken
             val member = cmd.token?.let(state::resume) ?: cmd.name?.let { name ->
-                val isHost = cmd.hostToken != null && cmd.hostToken == hostToken
-                state.join(name, cmd.color, isHost)?.also { (_, out) -> dispatch(out) }?.first
+                // The same device coming back (left, or a fresh tab) is the same person until the Campfire ends.
+                val returning = if (isHost) null else lastIp.entries.lastOrNull { it.value == ip && connections[it.key].isNullOrEmpty() }?.key
+                returning?.let { state.reclaim(it, name) }?.also { (_, out) -> dispatch(out) }?.first
+                    ?: state.join(name, cmd.color, isHost)?.also { (_, out) -> dispatch(out) }?.first
             }
             if (member == null) {
                 val error = if (cmd.token != null && cmd.name == null) {

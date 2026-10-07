@@ -297,6 +297,22 @@ private fun ConnectingBanner() {
     }
 }
 
+/**
+ * "Asha is typing…" in a slot that's always there, so the messages above never jump when it
+ * comes and goes. Its once-a-second clock lives here so nothing else redraws with it.
+ */
+@Composable
+private fun TypingLine(ui: ChatUi, conv: String) {
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) { while (true) { delay(1_000); now = System.currentTimeMillis() } }
+    val typing = ui.typingIn(conv, now)
+    Text(
+        if (typing.isEmpty()) "" else typing.joinToString(" and ") + if (typing.size == 1) " is typing…" else " are typing…",
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.fillMaxWidth().height(20.dp).padding(horizontal = 20.dp),
+    )
+}
+
 private class Upload(val id: Long, val name: String) { var progress by mutableStateOf(0f) }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -315,9 +331,6 @@ internal fun Conversation(ui: ChatUi, client: ChatClient, connection: ChatConnec
     var info by remember { mutableStateOf(false) }
     var viewing by remember { mutableStateOf<String?>(null) }
     val uploads = remember { mutableStateListOf<Upload>() }
-    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(Unit) { while (true) { delay(1_000); now = System.currentTimeMillis() } }
-
     // Tell others we're typing, at most every few seconds.
     var lastTyping by remember { mutableLongStateOf(0L) }
     fun onText(v: String) {
@@ -371,7 +384,12 @@ internal fun Conversation(ui: ChatUi, client: ChatClient, connection: ChatConnec
 
         // Messages, newest at the bottom
         val list = rememberLazyListState()
-        LaunchedEffect(messages.size) { if (messages.isNotEmpty()) list.animateScrollToItem(0) }
+        // Follow new messages when already at the bottom (or when it's your own), never yank someone reading back.
+        val newestId = messages.lastOrNull()?.id
+        LaunchedEffect(newestId) {
+            if (newestId != null && (list.firstVisibleItemIndex <= 1 || messages.last().from == ui.me?.id)) list.animateScrollToItem(0)
+        }
+        val lastMineId = remember(messages, ui.me?.id) { messages.lastOrNull { it.from == ui.me?.id }?.id }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (messages.isEmpty() && state?.loaded == true) {
                 EmptyState(Icons.Rounded.LocalFireDepartment, "No messages yet", "Say hello to everyone around the fire.", Modifier.align(Alignment.Center))
@@ -383,7 +401,7 @@ internal fun Conversation(ui: ChatUi, client: ChatClient, connection: ChatConnec
                     val older = reversed.getOrNull(i + 1)
                     val firstOfGroup = older == null || older.from != m.from || m.at - older.at > 5 * 60_000
                     MessageItem(
-                        ui, m, conv, firstOfGroup, isLastMine = m.from == ui.me?.id && reversed.indexOfFirst { it.from == ui.me?.id } == i,
+                        ui, m, conv, firstOfGroup, isLastMine = m.id == lastMineId,
                         messages = messages, connection = connection,
                         onLongPress = { actionsFor = m }, onReact = { e -> client.react(m.id, e) }, onImage = { viewing = it },
                     )
@@ -392,13 +410,7 @@ internal fun Conversation(ui: ChatUi, client: ChatClient, connection: ChatConnec
         }
 
         // Typing and uploads
-        val typing = ui.typingIn(conv, now)
-        if (typing.isNotEmpty()) {
-            Text(
-                typing.joinToString(" and ") + if (typing.size == 1) " is typing…" else " are typing…",
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp),
-            )
-        }
+        TypingLine(ui, conv)
         uploads.forEach { u ->
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(u.name, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
@@ -503,7 +515,7 @@ private fun MessageItem(
                             Text("This message was deleted", style = MaterialTheme.typography.bodyMedium.copy(fontStyle = FontStyle.Italic), color = onBubble.copy(alpha = 0.7f))
                         } else {
                             m.attachment?.let { a -> AttachmentView(a, connection, onImage) { download(context, connection.fileUrl(a), a) } }
-                            if (m.text.isNotBlank()) Text(linkify(m.text, c.primary), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = if (m.attachment != null) 6.dp else 0.dp))
+                            if (m.text.isNotBlank()) Text(remember(m.text, c.primary) { linkify(m.text, c.primary) }, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = if (m.attachment != null) 6.dp else 0.dp))
                             m.preview?.let { p ->
                                 Column(Modifier.padding(top = 8.dp).clip(RoundedCornerShape(12.dp)).background(onBubble.copy(alpha = 0.06f)).clickable { open(context, p.url, null) }.padding(10.dp)) {
                                     p.imageId?.let { RemoteImage(connection.fileUrl(it), null, Modifier.fillMaxWidth().height(140.dp).clip(RoundedCornerShape(8.dp))) }
