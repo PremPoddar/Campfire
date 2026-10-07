@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Photos and videos taken for the chat wait here until they're sent. -->
+    <cache-path name="camera" path="camera/" />
+</paths>

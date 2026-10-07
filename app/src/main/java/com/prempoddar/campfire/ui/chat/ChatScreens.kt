@@ -1,5 +1,11 @@
 package com.prempoddar.campfire.ui.chat
 
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material.icons.rounded.Videocam
+import androidx.compose.material.icons.rounded.PhotoCamera
+import androidx.compose.material.icons.rounded.PhotoLibrary
+import androidx.compose.material.icons.rounded.AddCircle
 import android.app.DownloadManager
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -338,7 +344,7 @@ internal fun Conversation(ui: ChatUi, client: ChatClient, connection: ChatConnec
         if (v.isNotBlank() && System.currentTimeMillis() - lastTyping > 2_500) { lastTyping = System.currentTimeMillis(); client.typing() }
     }
 
-    val pick = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
+    fun sendUris(uris: List<Uri>) {
         uris.forEach { uri ->
             val (name, size) = describe(context, uri)
             val up = Upload(System.nanoTime(), name)
@@ -356,6 +362,18 @@ internal fun Conversation(ui: ChatUi, client: ChatClient, connection: ChatConnec
             }
         }
     }
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris -> sendUris(uris) }
+    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(20)) { uris -> sendUris(uris) }
+    // The camera app writes straight into a file we share with it.
+    var shot by rememberSaveable { mutableStateOf<Uri?>(null) }
+    fun newShot(ext: String): Uri {
+        val dir = java.io.File(context.cacheDir, "camera").apply { mkdirs() }
+        val stamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date())
+        return androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".camera", java.io.File(dir, "${if (ext == "mp4") "VID" else "IMG"}_$stamp.$ext")).also { shot = it }
+    }
+    val takePhoto = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok -> shot?.let { if (ok) sendUris(listOf(it)) }; shot = null }
+    val takeVideo = rememberLauncherForActivityResult(ActivityResultContracts.CaptureVideo()) { ok -> shot?.let { if (ok) sendUris(listOf(it)) }; shot = null }
+    var attachMenu by remember { mutableStateOf(false) }
 
     fun submit() {
         val e = editing
@@ -437,7 +455,21 @@ internal fun Conversation(ui: ChatUi, client: ChatClient, connection: ChatConnec
             Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, top = 6.dp, bottom = 8.dp).navigationBarsPadding(),
             verticalAlignment = Alignment.Bottom,
         ) {
-            IconButton(onClick = { pick.launch("*/*") }, modifier = Modifier.padding(bottom = 4.dp)) { Icon(Icons.Rounded.AttachFile, "Attach a file") }
+            Box(Modifier.padding(bottom = 4.dp)) {
+                IconButton(onClick = { attachMenu = true }) { Icon(Icons.Rounded.AddCircle, "Send a photo, video or file") }
+                DropdownMenu(attachMenu, onDismissRequest = { attachMenu = false }) {
+                    DropdownMenuItem(text = { Text("Gallery") }, leadingIcon = { Icon(Icons.Rounded.PhotoLibrary, null) }, onClick = {
+                        attachMenu = false; gallery.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
+                    })
+                    DropdownMenuItem(text = { Text("Take a photo") }, leadingIcon = { Icon(Icons.Rounded.PhotoCamera, null) }, onClick = {
+                        attachMenu = false; runCatching { takePhoto.launch(newShot("jpg")) }.onFailure { Toast.makeText(context, "No camera app found", Toast.LENGTH_SHORT).show() }
+                    })
+                    DropdownMenuItem(text = { Text("Record a video") }, leadingIcon = { Icon(Icons.Rounded.Videocam, null) }, onClick = {
+                        attachMenu = false; runCatching { takeVideo.launch(newShot("mp4")) }.onFailure { Toast.makeText(context, "No camera app found", Toast.LENGTH_SHORT).show() }
+                    })
+                    DropdownMenuItem(text = { Text("Any file") }, leadingIcon = { Icon(Icons.Rounded.AttachFile, null) }, onClick = { attachMenu = false; pick.launch("*/*") })
+                }
+            }
             PillTextField(
                 text, ::onText, "Message", modifier = Modifier.weight(1f), singleLine = false, clearable = false,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),

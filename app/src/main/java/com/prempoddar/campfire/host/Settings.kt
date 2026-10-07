@@ -18,8 +18,13 @@ data class HostSettings(
     val appearance: Appearance = Appearance(),
     /** What the host is called in the chat. */
     val hostName: String = "",
+    /** True while the name follows the host's ("Prem's Campfire") rather than one they typed. */
+    val serverNameAuto: Boolean = true,
 ) {
     companion object {
+        /** "Prem's Campfire", or just "Campfire" before a name is set. */
+        fun autoName(hostName: String): String = hostName.trim().takeIf { it.isNotEmpty() }?.let { "$it's Campfire".take(40) } ?: "Campfire"
+
         const val DEFAULT_PORT = 8080
         val PORTS = 1024..65535
     }
@@ -38,8 +43,8 @@ class SettingsRepository(private val context: Context) {
         val hostName = stringPreferencesKey("host_name")
     }
 
-    /** "Pixel 8's Campfire", from the phone's own name. */
-    private val defaultName: String by lazy {
+    /** What older versions saved by default ("Pixel 8's Campfire"); treated as not chosen. */
+    private val deviceName: String by lazy {
         val device = SystemSettings.Global.getString(context.contentResolver, SystemSettings.Global.DEVICE_NAME)
             ?.takeIf { it.isNotBlank() } ?: android.os.Build.MODEL
         "$device's Campfire".take(40)
@@ -50,7 +55,8 @@ class SettingsRepository(private val context: Context) {
     suspend fun update(transform: (HostSettings) -> HostSettings) {
         context.dataStore.edit { p ->
             val next = transform(p.toSettings())
-            p[Keys.name] = next.serverName
+            // Only a name someone chose is kept; otherwise it follows their name.
+            if (next.serverNameAuto || next.serverName.isBlank() || next.serverName == HostSettings.autoName(next.hostName)) p.remove(Keys.name) else p[Keys.name] = next.serverName
             p[Keys.port] = next.port
             p[Keys.theme] = next.appearance.mode.name
             p[Keys.dynamic] = next.appearance.dynamic
@@ -60,8 +66,12 @@ class SettingsRepository(private val context: Context) {
         }
     }
 
-    private fun Preferences.toSettings() = HostSettings(
-        serverName = this[Keys.name]?.takeIf { it.isNotBlank() } ?: defaultName,
+    private fun Preferences.toSettings(): HostSettings {
+        val chosen = this[Keys.name]?.takeIf { it.isNotBlank() && it != deviceName }
+        val host = this[Keys.hostName].orEmpty()
+        return HostSettings(
+        serverName = chosen ?: HostSettings.autoName(host),
+        serverNameAuto = chosen == null,
         port = this[Keys.port]?.takeIf { it in HostSettings.PORTS } ?: HostSettings.DEFAULT_PORT,
         appearance = Appearance(
             mode = this[Keys.theme]?.let { runCatching { Appearance.Mode.valueOf(it) }.getOrNull() } ?: Appearance.Mode.SYSTEM,
@@ -69,6 +79,7 @@ class SettingsRepository(private val context: Context) {
             accent = this[Keys.accent],
             pureBlack = this[Keys.black] ?: false,
         ),
-        hostName = this[Keys.hostName].orEmpty(),
+        hostName = host,
     )
+    }
 }

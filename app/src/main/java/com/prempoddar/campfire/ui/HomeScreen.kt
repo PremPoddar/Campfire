@@ -238,22 +238,32 @@ private fun StoppedForm(s: HostSettings, starting: Boolean, error: String?, onSt
     val scope = rememberCoroutineScope()
     var hostName by rememberSaveable { mutableStateOf(s.hostName) }
     var serverName by rememberSaveable { mutableStateOf(s.serverName) }
+    // Until a name is typed here, the Campfire is named after its host.
+    var custom by rememberSaveable { mutableStateOf(!s.serverNameAuto) }
     val addresses = remember(starting, error) { NetworkInfo.addresses() }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         PillTextField(
-            hostName, { v -> hostName = v.take(32); scope.launch { AppGraph.settings.update { it.copy(hostName = v.trim().take(32)) } } },
+            hostName, { v ->
+                hostName = v.take(32)
+                if (!custom) serverName = HostSettings.autoName(hostName)
+                scope.launch { AppGraph.settings.update { it.copy(hostName = v.trim().take(32)) } }
+            },
             "Your name", supporting = "What people see next to your messages", leading = Icons.Rounded.Person,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
         )
         PillTextField(
-            serverName, { v -> serverName = v.take(40); if (v.isNotBlank()) scope.launch { AppGraph.settings.update { it.copy(serverName = v.trim().take(40)) } } },
+            serverName, { v ->
+                serverName = v.take(40)
+                custom = v.isNotBlank() && v.trim() != HostSettings.autoName(hostName)
+                scope.launch { AppGraph.settings.update { it.copy(serverName = v.trim().take(40), serverNameAuto = !custom) } }
+            },
             "Campfire name", supporting = "Shown to people when they join", leading = Icons.Rounded.LocalFireDepartment,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
         )
         NetworkCard(addresses)
         if (error != null) Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(horizontal = 8.dp))
         BigButton(
-            if (starting) "Starting…" else "Start", onClick = onStart, enabled = !starting && serverName.isNotBlank(),
+            if (starting) "Starting…" else "Start", onClick = onStart, enabled = !starting,
             icon = Icons.Rounded.LocalFireDepartment, modifier = Modifier.padding(top = 4.dp),
         )
     }

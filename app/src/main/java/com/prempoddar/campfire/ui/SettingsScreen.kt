@@ -47,7 +47,10 @@ fun SettingsScreen(onBack: () -> Unit, onAppearance: () -> Unit, onAbout: () -> 
     val portOk = portValue != null && portValue in HostSettings.PORTS
 
     // Saved as you type; values that aren't valid simply aren't saved.
-    LaunchedEffect(name) { if (name.isNotBlank()) AppGraph.settings.update { it.copy(serverName = name.trim().take(40)) } }
+    LaunchedEffect(name) {
+        val auto = name.isBlank() || name.trim() == HostSettings.autoName(host)
+        AppGraph.settings.update { it.copy(serverName = name.trim().take(40), serverNameAuto = auto) }
+    }
     LaunchedEffect(host) { AppGraph.settings.update { it.copy(hostName = host.trim().take(32)) } }
     LaunchedEffect(port) { if (portOk) AppGraph.settings.update { it.copy(port = portValue!!) } }
 
