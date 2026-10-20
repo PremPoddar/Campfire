@@ -55,7 +55,16 @@ data class Message(
     /** Emoji → ids of the members who reacted with it. */
     val reactions: Map<String, Set<String>> = emptyMap(),
     val preview: LinkPreview? = null,
+    /** Kept at the top of the conversation by its admins. */
+    val pinned: Boolean = false,
+    val poll: Poll? = null,
 )
+
+/** A question with choices; each person has one vote, which they can change or take back. */
+@Serializable
+data class Poll(val question: String, val options: List<String>, val votes: Map<Int, Set<String>> = emptyMap()) {
+    fun voteOf(memberId: String): Int? = votes.entries.firstOrNull { memberId in it.value }?.key
+}
 
 const val PUBLIC_ROOM = "public"
 const val COLOR_COUNT = 10

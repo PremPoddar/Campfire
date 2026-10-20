@@ -122,6 +122,9 @@ class ChatState(
             is ClientCommand.React -> react(me, cmd)
             is ClientCommand.Read -> read(me, cmd)
             is ClientCommand.Typing -> typing(me, cmd.conv)
+            is ClientCommand.Pin -> pin(me, cmd)
+            is ClientCommand.Vote -> vote(me, cmd)
+            is ClientCommand.Mute -> mute(me, cmd, now)
         }
     }
 
@@ -252,7 +255,13 @@ class ChatState(
     private fun send(me: Member, cmd: ClientCommand.Send, now: Long): List<Delivery> {
         val people = participants(cmd.conv)
         if (people == null || me.id !in people) return notMember(me)
-        if (cmd.text.isBlank() && cmd.attachment == null) return error(me, "empty", "Type a message first.")
+        mutedUntil(me.id, now)?.let { return error(me, "muted", "The host has muted you for now. You can still read.") }
+        val poll = cmd.poll?.let { d ->
+            val options = d.options.map { it.trim() }.filter { it.isNotEmpty() }.distinct().take(MAX_POLL_OPTIONS)
+            if (d.question.isBlank() || options.size < 2) return error(me, "bad_poll", "A poll needs a question and at least two choices.")
+            Poll(d.question.trim().take(MAX_TEXT), options.map { it.take(100) })
+        }
+        if (cmd.text.isBlank() && cmd.attachment == null && poll == null) return error(me, "empty", "Type a message first.")
         if (cmd.text.length > MAX_TEXT) return error(me, "too_long", "Messages can be up to $MAX_TEXT characters.")
         val replyTo = cmd.replyTo?.takeIf { convOf[it] == cmd.conv }
         val msg = Message(
@@ -263,6 +272,7 @@ class ChatState(
             at = now,
             replyTo = replyTo,
             attachment = cmd.attachment,
+            poll = poll,
         )
         val list = messages.getOrPut(cmd.conv) { ArrayDeque() }
         list.addLast(msg)
@@ -306,6 +316,37 @@ class ChatState(
         val reactions = (msg.reactions + (emoji to next)).filterValues { it.isNotEmpty() }
         return listOf(publish(msg.copy(reactions = reactions)))
     }
+
+    private fun pin(me: Member, cmd: ClientCommand.Pin): List<Delivery> {
+        val msg = message(cmd.msgId)?.takeIf { !it.deleted } ?: return error(me, "not_found", "That message is gone.")
+        val room = Conv.roomId(msg.conv)?.let(rooms::get)
+        // In a room its admins pin; in a private chat, either of the two.
+        val allowed = if (room != null) isAdmin(me, room) else me.id in participants(msg.conv).orEmpty()
+        if (!allowed) return notAllowed(me)
+        return listOf(publish(msg.copy(pinned = cmd.pinned)))
+    }
+
+    private fun vote(me: Member, cmd: ClientCommand.Vote): List<Delivery> {
+        val msg = message(cmd.msgId)?.takeIf { !it.deleted } ?: return error(me, "not_found", "That message is gone.")
+        val poll = msg.poll ?: return error(me, "not_poll", "That isn't a poll.")
+        if (me.id !in participants(msg.conv).orEmpty()) return notMember(me)
+        if (cmd.option !in poll.options.indices) return error(me, "bad_vote", "That choice isn't in the poll.")
+        // One vote each: choosing again moves it, choosing the same one takes it back.
+        val previous = poll.voteOf(me.id)
+        val cleared = poll.votes.mapValues { (_, who) -> who - me.id }
+        val votes = if (previous == cmd.option) cleared else cleared + (cmd.option to (cleared[cmd.option].orEmpty() + me.id))
+        return listOf(publish(msg.copy(poll = poll.copy(votes = votes.filterValues { it.isNotEmpty() }))))
+    }
+
+    private fun mute(me: Member, cmd: ClientCommand.Mute, now: Long): List<Delivery> {
+        if (!me.isHost) return error(me, "not_allowed", "Only the host can mute people.")
+        val target = member(cmd.memberId) ?: return error(me, "not_found", "They've left.")
+        if (target.isHost) return error(me, "not_allowed", "The host can't be muted.")
+        if (cmd.minutes <= 0) mutes.remove(target.id) else mutes[target.id] = now + cmd.minutes.coerceAtMost(24 * 60) * 60_000L
+        return listOf(toAll(ServerEvent.Members(memberInfos(now))))
+    }
+
+    private fun mutedUntil(memberId: String, now: Long): Long? = mutes[memberId]?.takeIf { it > now }
 
     private fun read(me: Member, cmd: ClientCommand.Read): List<Delivery> {
         val people = participants(cmd.conv)
@@ -366,8 +407,9 @@ class ChatState(
         rooms[id]?.let { rooms[id] = change(it) }
     }
 
-    private fun info(m: Member) = MemberInfo(m.id, m.name, m.color, m.isHost, m.id in online)
-    private fun memberInfos() = members.values.filter { it.id !in removed }.map(::info)
+    private val mutes = mutableMapOf<String, Long>()
+    private fun info(m: Member, now: Long = System.currentTimeMillis()) = MemberInfo(m.id, m.name, m.color, m.isHost, m.id in online, mutedUntil(m.id, now))
+    private fun memberInfos(now: Long = System.currentTimeMillis()) = members.values.filter { it.id !in removed }.map { info(it, now) }
     private fun roomInfos() = rooms.values.map { RoomInfo(it.id, it.name, it.passwordHash != null, it.creatorId, it.members.toList()) }
     private fun toAll(event: ServerEvent) = Delivery(members.keys - removed, event)
     private fun error(me: Member, code: String, message: String) = listOf(Delivery(setOf(me.id), ServerEvent.Error(code, message)))
@@ -377,5 +419,6 @@ class ChatState(
     companion object {
         const val MAX_TEXT = 4_000
         const val MAX_REACTIONS = 20
+        const val MAX_POLL_OPTIONS = 10
     }
 }

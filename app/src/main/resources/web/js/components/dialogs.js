@@ -26,6 +26,25 @@ function Shell({ title, body, children, onSubmit }) {
   </div>`
 }
 
+function NewPoll({ dialog }) {
+  const [question, setQuestion] = useState('')
+  const [options, setOptions] = useState(['', ''])
+  const ready = question.trim() && options.filter((o) => o.trim()).length >= 2
+  return html`<${Shell} title="New poll" onSubmit=${() => {
+    if (!ready) return
+    send({ type: 'send', conv: dialog.conv, poll: { question: question.trim(), options: options.map((o) => o.trim()).filter(Boolean) } })
+    close()
+  }}>
+    <div class="stackf">
+      <div><label class="label" for="pq">Question</label><input id="pq" class="field" maxlength="300" value=${question} onInput=${(e) => setQuestion(e.target.value)} placeholder="Where shall we eat?" /></div>
+      ${options.map((o, i) => html`<div><label class="label" for=${'po' + i}>Choice ${i + 1}</label><input id=${'po' + i} class="field" maxlength="100" value=${o}
+        onInput=${(e) => setOptions(options.map((x, j) => (j === i ? e.target.value : x)))} /></div>`)}
+      ${options.length < 10 && html`<button type="button" class="btn ghost" onClick=${() => setOptions([...options, ''])}>Add a choice</button>`}
+    </div>
+    <div class="actions"><button type="button" class="btn ghost" onClick=${close}>Cancel</button><button class="btn" disabled=${!ready}>Send poll</button></div>
+  </${Shell}>`
+}
+
 function CreateRoom() {
   const [name, setName] = useState('')
   const [pw, setPw] = useState('')
@@ -99,6 +118,7 @@ export function Dialogs() {
     case 'roomSettings': return html`<${RoomSettings} dialog=${d} />`
     case 'confirm': return html`<${Confirm} dialog=${d} />`
     case 'privacy': return html`<${Privacy} />`
+    case 'poll': return html`<${NewPoll} dialog=${d} />`
     default: return null
   }
 }
@@ -145,7 +165,8 @@ export function Menus() {
     body = html`
       <button onClick=${done(() => { setState({ replyTo: msg, editing: null }); document.getElementById('composer')?.focus() })}>${Icon.reply()} Reply</button>
       ${msg.text && html`<button onClick=${done(() => navigator.clipboard?.writeText(msg.text).then(() => toast('Copied'), () => toast("Couldn't copy here")))}>${Icon.copy()} Copy text</button>`}
-      ${m.mine && msg.text && html`<button onClick=${done(() => setState({ editing: msg, replyTo: null }))}>${Icon.edit()} Edit</button>`}
+      ${m.mine && msg.text && !msg.poll && html`<button onClick=${done(() => setState({ editing: msg, replyTo: null }))}>${Icon.edit()} Edit</button>`}
+      ${m.canPin && html`<button onClick=${done(() => send({ type: 'pin', msgId: msg.id, pinned: !msg.pinned }))}>${Icon.pin(18)} ${msg.pinned ? 'Unpin' : 'Pin to the top'}</button>`}
       ${msg.attachment && html`<a class="sr" href=${fileUrl(msg.attachment)}></a>`}
       ${m.canDelete && html`<hr /><button style="color:var(--danger)" onClick=${done(() => send({ type: 'delete', msgId: msg.id }))}>${Icon.trash()} Delete</button>`}`
   } else if (m.kind === 'emoji') {

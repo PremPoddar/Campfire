@@ -261,4 +261,41 @@ class ChatStateTest {
         chat.removeFromServer(ben.id)
         assertThat(chat.reclaim(ben.id, "Ben")).isNull()
     }
+
+    // Pins, polls and muting
+
+    @Test fun adminsPinAndOthersCant() {
+        val msg = send(asha, pub, "meet at the gate")
+        assertThat(chat.handle(ben.id, ClientCommand.Pin(msg.id, true), 2000).errorCode()).isEqualTo("not_allowed")
+        val pinned = chat.handle(host.id, ClientCommand.Pin(msg.id, true), 2000).only<ServerEvent.MessageUpdated>().message
+        assertThat(pinned.pinned).isTrue()
+    }
+
+    @Test fun eachPersonHasOneVoteTheyCanMoveOrTakeBack() {
+        val poll = chat.handle(asha.id, ClientCommand.Send(pub, poll = PollDraft("Pizza or dosa?", listOf("Pizza", "Dosa", " "))), 1000)
+            .only<ServerEvent.NewMessage>().message
+        assertThat(poll.poll!!.options).containsExactly("Pizza", "Dosa").inOrder()
+        fun vote(m: Member, o: Int) = chat.handle(m.id, ClientCommand.Vote(poll.id, o), 2000).only<ServerEvent.MessageUpdated>().message.poll!!
+        vote(asha, 0); vote(ben, 0)
+        var p = vote(ben, 1) // Ben changes his mind
+        assertThat(p.votes[0]).containsExactly(asha.id); assertThat(p.votes[1]).containsExactly(ben.id)
+        p = vote(ben, 1) // and takes it back
+        assertThat(p.votes[1]).isNull()
+        assertThat(chat.handle(ben.id, ClientCommand.Vote(poll.id, 7), 2000).errorCode()).isEqualTo("bad_vote")
+    }
+
+    @Test fun aPollNeedsTwoChoices() {
+        val out = chat.handle(asha.id, ClientCommand.Send(pub, poll = PollDraft("Go?", listOf("Yes"))), 1000)
+        assertThat(out.errorCode()).isEqualTo("bad_poll")
+    }
+
+    @Test fun theHostMutesForAWhile() {
+        assertThat(chat.handle(asha.id, ClientCommand.Mute(ben.id, 10), 1000).errorCode()).isEqualTo("not_allowed")
+        val members = chat.handle(host.id, ClientCommand.Mute(ben.id, 10), 1000).only<ServerEvent.Members>().members
+        assertThat(members.first { it.id == ben.id }.mutedUntil).isEqualTo(1000 + 10 * 60_000L)
+        assertThat(chat.handle(ben.id, ClientCommand.Send(pub, "hello"), 2000).errorCode()).isEqualTo("muted")
+        // Ten minutes later he can speak again.
+        assertThat(chat.handle(ben.id, ClientCommand.Send(pub, "hello"), 1000 + 10 * 60_000L + 1).only<ServerEvent.NewMessage>().message.text).isEqualTo("hello")
+        assertThat(chat.handle(host.id, ClientCommand.Mute(host.id, 10), 1000).errorCode()).isEqualTo("not_allowed")
+    }
 }

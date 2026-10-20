@@ -190,8 +190,15 @@ class ChatClient(private val now: () -> Long = System::currentTimeMillis) {
         if (text.isBlank() && attachment == null) return
         val id = UUID.randomUUID().toString()
         _state.update { it.copy(pending = it.pending + id) }
-        command(ClientCommand.Send(conv, text.trim(), replyTo, attachment, id))
+        command(ClientCommand.Send(conv, text.trim(), replyTo, attachment, clientId = id))
     }
+
+    fun sendPoll(question: String, options: List<String>, conv: String = _state.value.active) =
+        command(ClientCommand.Send(conv, poll = com.prempoddar.campfire.core.PollDraft(question, options)))
+
+    fun pin(msgId: Long, pinned: Boolean) = command(ClientCommand.Pin(msgId, pinned))
+    fun vote(msgId: Long, option: Int) = command(ClientCommand.Vote(msgId, option))
+    fun mute(memberId: String, minutes: Int) = command(ClientCommand.Mute(memberId, minutes))
 
     fun edit(msgId: Long, text: String) = command(ClientCommand.Edit(msgId, text.trim()))
     fun delete(msgId: Long) = command(ClientCommand.Delete(msgId))

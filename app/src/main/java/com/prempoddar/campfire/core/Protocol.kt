@@ -12,6 +12,8 @@ data class MemberInfo(
     val color: Int,
     val isHost: Boolean,
     val online: Boolean,
+    /** Muted by the host until this time; they can read but not send. */
+    val mutedUntil: Long? = null,
 )
 
 @Serializable
@@ -25,6 +27,10 @@ data class RoomInfo(
 
 @Serializable
 data class Receipt(val memberId: String, val upTo: Long)
+
+/** A poll as its author writes it, before anyone has voted. */
+@Serializable
+data class PollDraft(val question: String, val options: List<String>)
 
 /** A conversation the member is part of, for the sidebar after (re)connecting. */
 @Serializable
@@ -84,9 +90,21 @@ sealed interface ClientCommand {
         val text: String = "",
         val replyTo: Long? = null,
         val attachment: Attachment? = null,
+        /** Makes this message a poll: [text] is ignored and the question is used. */
+        val poll: PollDraft? = null,
         /** Echoed back so the sender can match its pending message. */
         val clientId: String? = null,
     ) : ClientCommand
+
+    @Serializable @SerialName("pin")
+    data class Pin(val msgId: Long, val pinned: Boolean) : ClientCommand
+
+    @Serializable @SerialName("vote")
+    data class Vote(val msgId: Long, val option: Int) : ClientCommand
+
+    /** Host only: [minutes] 0 lifts it. */
+    @Serializable @SerialName("mute")
+    data class Mute(val memberId: String, val minutes: Int) : ClientCommand
 
     @Serializable @SerialName("edit")
     data class Edit(val msgId: Long, val text: String) : ClientCommand

@@ -13,6 +13,9 @@ export function Composer({ conv }) {
   const area = useRef()
   const fileInput = useRef()
   const cameraInput = useRef()
+  // Browsers only give pages the microphone over https, which a local Campfire isn't; asking for an
+  // audio file with capture opens the phone's own recorder instead, and that always works.
+  const voiceInput = useRef()
   const drafts = useRef({})
 
   // Keep a draft per conversation.
@@ -98,6 +101,9 @@ export function Composer({ conv }) {
       <input ref=${fileInput} type="file" multiple hidden onChange=${(e) => { pickFiles(e.target.files); e.target.value = '' }} />
       <button class="icon-btn" aria-label="Take a photo or video" onClick=${() => cameraInput.current.click()}>${Icon.camera()}</button>
       <input ref=${cameraInput} type="file" accept="image/*,video/*" capture="environment" hidden onChange=${(e) => { pickFiles(e.target.files); e.target.value = '' }} />
+      <button class="icon-btn" aria-label="Record a voice note" onClick=${() => voiceInput.current.click()}>${Icon.mic()}</button>
+      <input ref=${voiceInput} type="file" accept="audio/*" capture hidden onChange=${(e) => { pickFiles(e.target.files); e.target.value = '' }} />
+      <button class="icon-btn" aria-label="Make a poll" onClick=${() => setState({ dialog: { kind: 'poll', conv } })}>${Icon.poll()}</button>
       <textarea id="composer" ref=${area} rows="1" value=${text} placeholder="Message" aria-label="Message"
         onInput=${(e) => change(e.target.value)} onKeyDown=${keyDown} onPaste=${paste} maxlength="4000"></textarea>
       <button class="send" aria-label=${s.editing ? 'Save edit' : 'Send'} disabled=${!text.trim()} onClick=${submit}>${Icon.send()}</button>

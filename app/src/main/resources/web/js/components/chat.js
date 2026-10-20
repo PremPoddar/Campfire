@@ -118,6 +118,12 @@ export function Chat() {
       ${room && html`<button class="icon-btn" aria-label="People in this room" aria-pressed=${s.showMembers} onClick=${() => setState({ showMembers: !s.showMembers })}>${Icon.users()}</button>`}
       ${room && room.id !== 'public' && html`<button class="icon-btn" aria-label="Room options" onClick=${(e) => setState({ menu: { kind: 'room', roomId: room.id, admin: isAdmin(s, room), x: e.currentTarget.getBoundingClientRect() } })}>${Icon.more()}</button>`}
     </header>
+    ${(() => {
+      // The latest pinned message stays in view at the top; tap to go to it.
+      const pinned = c.messages.filter((m) => m.pinned && !m.deleted).at(-1)
+      return pinned && html`<button class="pinbar" onClick=${() => document.getElementById('m' + pinned.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>
+        ${Icon.pin(14)}<span>${pinned.poll ? 'Poll: ' + pinned.poll.question : pinned.text || pinned.attachment?.name || 'Pinned message'}</span></button>`
+    })()}
     <div class="messages" ref=${list} onScroll=${onScroll} onClick=${() => setSelected(null)} role="log" aria-label=${`Messages in ${convTitle(s, conv)}`}>
       ${c.messages.length > shown.length && html`<div class="earlier"><button class="btn ghost" onClick=${() => setState((st) => ({ limit: { ...st.limit, [conv]: limit + PAGE } }))}>Show earlier messages</button></div>`}
       ${c.loaded && c.messages.length === 0 && html`<div class="empty" style="min-height:60%"><div>

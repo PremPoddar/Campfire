@@ -1,5 +1,14 @@
 package com.prempoddar.campfire.ui.chat
 
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
+import androidx.compose.material.icons.automirrored.rounded.VolumeOff
+import androidx.compose.material.icons.rounded.SaveAlt
+import androidx.compose.material.icons.rounded.PushPin
+import androidx.compose.material.icons.rounded.Poll
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material.icons.rounded.Videocam
@@ -381,6 +390,13 @@ internal fun Conversation(ui: ChatUi, client: ChatClient, connection: ChatConnec
         text = ""
     }
 
+    var makingPoll by remember { mutableStateOf(false) }
+    if (makingPoll) PollDialog(onDismiss = { makingPoll = false }) { q, options -> client.sendPoll(q, options, conv); makingPoll = false }
+    val saveChat = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("text/plain")) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        val ok = runCatching { context.contentResolver.openOutputStream(uri)!!.bufferedWriter().use { it.write(chatAsText(title, messages, ui)) } }.isSuccess
+        Toast.makeText(context, if (ok) "Chat saved" else "Couldn't save the chat", Toast.LENGTH_SHORT).show()
+    }
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).imePadding()) {
         // Top bar
         Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
@@ -395,6 +411,8 @@ internal fun Conversation(ui: ChatUi, client: ChatClient, connection: ChatConnec
                     }
                     if (sub.isNotEmpty()) Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                // The chat is gone when the Campfire ends; this keeps a copy as a text file.
+                IconButton(onClick = { saveChat.launch("$title chat.txt") }) { Icon(Icons.Rounded.SaveAlt, "Save this chat") }
                 if (room != null) IconButton(onClick = { info = true }) { Icon(Icons.Rounded.Info, "About this room") }
             }
         }
@@ -408,6 +426,23 @@ internal fun Conversation(ui: ChatUi, client: ChatClient, connection: ChatConnec
             if (newestId != null && (list.firstVisibleItemIndex <= 1 || messages.last().from == ui.me?.id)) list.animateScrollToItem(0)
         }
         val lastMineId = remember(messages, ui.me?.id) { messages.lastOrNull { it.from == ui.me?.id }?.id }
+        // The latest pinned message, kept in view; tap to jump to it.
+        val pinned = messages.lastOrNull { it.pinned && !it.deleted }
+        val pinScope = rememberCoroutineScope()
+        if (pinned != null) {
+            Surface(color = MaterialTheme.colorScheme.secondaryContainer, onClick = {
+                val index = messages.asReversed().indexOfFirst { it.id == pinned.id }
+                if (index >= 0) pinScope.launch { list.animateScrollToItem(index) }
+            }) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.PushPin, null, Modifier.size(18.dp))
+                    Text(
+                        pinned.poll?.question?.let { "Poll: $it" } ?: pinned.text.ifBlank { pinned.attachment?.name ?: "Pinned message" },
+                        style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 10.dp),
+                    )
+                }
+            }
+        }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (messages.isEmpty() && state?.loaded == true) {
                 EmptyState(Icons.Rounded.LocalFireDepartment, "No messages yet", "Say hello to everyone around the fire.", Modifier.align(Alignment.Center))
@@ -422,6 +457,7 @@ internal fun Conversation(ui: ChatUi, client: ChatClient, connection: ChatConnec
                         ui, m, conv, firstOfGroup, isLastMine = m.id == lastMineId,
                         messages = messages, connection = connection,
                         onLongPress = { actionsFor = m }, onReact = { e -> client.react(m.id, e) }, onImage = { viewing = it },
+                        onVote = { o -> client.vote(m.id, o) },
                     )
                 }
             }
@@ -468,6 +504,7 @@ internal fun Conversation(ui: ChatUi, client: ChatClient, connection: ChatConnec
                         attachMenu = false; runCatching { takeVideo.launch(newShot("mp4")) }.onFailure { Toast.makeText(context, "No camera app found", Toast.LENGTH_SHORT).show() }
                     })
                     DropdownMenuItem(text = { Text("Any file") }, leadingIcon = { Icon(Icons.Rounded.AttachFile, null) }, onClick = { attachMenu = false; pick.launch("*/*") })
+                    DropdownMenuItem(text = { Text("Poll") }, leadingIcon = { Icon(Icons.Rounded.Poll, null) }, onClick = { attachMenu = false; makingPoll = true })
                 }
             }
             PillTextField(
@@ -493,6 +530,7 @@ internal fun Conversation(ui: ChatUi, client: ChatClient, connection: ChatConnec
             onEdit = { editing = m; replyTo = null; text = m.text; actionsFor = null },
             onDelete = { client.delete(m.id); actionsFor = null },
             onSave = { m.attachment?.let { download(context, connection.fileUrl(it), it) }; actionsFor = null },
+            onPin = { client.pin(m.id, it); actionsFor = null },
         )
     }
     if (info && room != null) RoomSheet(ui, room, client, onDismiss = { info = false })
@@ -509,7 +547,7 @@ internal fun Conversation(ui: ChatUi, client: ChatClient, connection: ChatConnec
 @Composable
 private fun MessageItem(
     ui: ChatUi, m: Message, conv: String, firstOfGroup: Boolean, isLastMine: Boolean, messages: List<Message>, connection: ChatConnection,
-    onLongPress: () -> Unit, onReact: (String) -> Unit, onImage: (String) -> Unit,
+    onLongPress: () -> Unit, onReact: (String) -> Unit, onImage: (String) -> Unit, onVote: (Int) -> Unit = {},
 ) {
     val context = LocalContext.current
     val mine = m.from == ui.me?.id
@@ -547,6 +585,7 @@ private fun MessageItem(
                             Text("This message was deleted", style = MaterialTheme.typography.bodyMedium.copy(fontStyle = FontStyle.Italic), color = onBubble.copy(alpha = 0.7f))
                         } else {
                             m.attachment?.let { a -> AttachmentView(a, connection, onImage) { download(context, connection.fileUrl(a), a) } }
+                            m.poll?.let { poll -> PollCard(poll, ui.me?.id, onBubble) { onVote(it) } }
                             if (m.text.isNotBlank()) Text(remember(m.text, c.primary) { linkify(m.text, c.primary) }, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = if (m.attachment != null) 6.dp else 0.dp))
                             m.preview?.let { p ->
                                 Column(Modifier.padding(top = 8.dp).clip(RoundedCornerShape(12.dp)).background(onBubble.copy(alpha = 0.06f)).clickable { open(context, p.url, null) }.padding(10.dp)) {
@@ -666,9 +705,11 @@ private fun describe(context: Context, uri: Uri): Pair<String, Long?> {
 @Composable
 private fun MessageActions(
     ui: ChatUi, m: Message, room: RoomInfo?, onDismiss: () -> Unit, onReact: (String) -> Unit, onReply: () -> Unit,
-    onCopy: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit, onSave: () -> Unit,
+    onCopy: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit, onSave: () -> Unit, onPin: (Boolean) -> Unit = {},
 ) {
     val mine = m.from == ui.me?.id
+    // Rooms: the host or the room's creator; private chats: either person.
+    val canPin = room == null || ui.me?.isHost == true || ui.isAdmin(room)
     val canDelete = mine || ui.me?.isHost == true || ui.isAdmin(room)
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.padding(bottom = 24.dp)) {
@@ -682,7 +723,8 @@ private fun MessageActions(
                 SheetAction(Icons.AutoMirrored.Rounded.Reply, "Reply", onReply)
                 if (m.text.isNotBlank()) SheetAction(Icons.Rounded.ContentCopy, "Copy text", onCopy)
                 if (m.attachment != null) SheetAction(Icons.Rounded.Download, "Save ${m.attachment.name}", onSave)
-                if (mine) SheetAction(Icons.Rounded.Edit, "Edit", onEdit)
+                if (mine && m.poll == null) SheetAction(Icons.Rounded.Edit, "Edit", onEdit)
+                if (canPin) SheetAction(Icons.Rounded.PushPin, if (m.pinned) "Unpin" else "Pin to the top", { onPin(!m.pinned) })
             }
             if (canDelete && !m.deleted) SheetAction(Icons.Rounded.Delete, "Delete for everyone", onDelete, danger = true)
         }
@@ -719,6 +761,12 @@ private fun RoomSheet(ui: ChatUi, room: RoomInfo, client: ChatClient, onDismiss:
                 Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     MemberAvatar(m, 36.dp)
                     Text(m.name + if (id == ui.me?.id) " (you)" else "", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f).padding(start = 14.dp))
+                    val muted = (m.mutedUntil ?: 0) > System.currentTimeMillis()
+                    if (muted) Text("muted", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(end = 8.dp))
+                    // The host can quiet someone for an hour without removing them.
+                    if (ui.me?.isHost == true && id != ui.me?.id && !m.isHost) IconButton(onClick = { client.mute(id, if (muted) 0 else 60) }) {
+                        Icon(if (muted) Icons.AutoMirrored.Rounded.VolumeUp else Icons.AutoMirrored.Rounded.VolumeOff, if (muted) "Let ${m.name} talk again" else "Mute ${m.name} for an hour")
+                    }
                     if (admin && id != ui.me?.id) IconButton(onClick = { client.removeMember(room.id, id) }) { Icon(Icons.Rounded.PersonRemove, "Remove ${m.name}") }
                 }
             }
@@ -770,4 +818,63 @@ private fun PasswordDialog(roomName: String, error: String?, onDismiss: () -> Un
         confirmButton = { TextButton(enabled = password.isNotEmpty(), onClick = { onJoin(password) }) { Text("Join") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
+}
+
+/** A poll in a message: tap a choice to vote, again to take it back; bars show how it stands. */
+@Composable
+private fun PollCard(poll: com.prempoddar.campfire.core.Poll, me: String?, ink: Color, onVote: (Int) -> Unit) {
+    val total = poll.votes.values.sumOf { it.size }
+    val mine = me?.let(poll::voteOf)
+    Column(Modifier.widthIn(min = 220.dp)) {
+        Text(poll.question, style = MaterialTheme.typography.titleMedium)
+        poll.options.forEachIndexed { i, option ->
+            val count = poll.votes[i]?.size ?: 0
+            val share = if (total == 0) 0f else count.toFloat() / total
+            Box(Modifier.padding(top = 6.dp).fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(ink.copy(alpha = 0.08f)).clickable { onVote(i) }) {
+                Box(Modifier.matchParentSize().fillMaxWidth(share).background(ink.copy(alpha = if (mine == i) 0.28f else 0.14f)))
+                Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (mine == i) Icon(Icons.Rounded.CheckCircle, "Your vote", Modifier.size(16.dp))
+                    Text(option, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(start = if (mine == i) 6.dp else 0.dp))
+                    Text("$count", style = MaterialTheme.typography.labelLarge)
+                }
+            }
+        }
+        Text(if (total == 1) "1 vote" else "$total votes", style = MaterialTheme.typography.labelSmall, color = ink.copy(alpha = 0.7f), modifier = Modifier.padding(top = 6.dp))
+    }
+}
+
+@Composable
+private fun PollDialog(onDismiss: () -> Unit, onSend: (String, List<String>) -> Unit) {
+    var question by remember { mutableStateOf("") }
+    val options = remember { androidx.compose.runtime.mutableStateListOf("", "") }
+    val ready = question.isNotBlank() && options.count { it.isNotBlank() } >= 2
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("New poll") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                OutlinedTextField(question, { question = it.take(300) }, label = { Text("Question") }, modifier = Modifier.fillMaxWidth())
+                options.forEachIndexed { i, o ->
+                    OutlinedTextField(o, { options[i] = it.take(100) }, label = { Text("Choice ${i + 1}") }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+                }
+                if (options.size < 10) TextButton(onClick = { options += "" }) { Text("Add a choice") }
+            }
+        },
+        confirmButton = { TextButton(enabled = ready, onClick = { onSend(question.trim(), options.filter { it.isNotBlank() }) }) { Text("Send poll") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+/** The conversation as plain text, oldest first: "[12:04] Asha: see you at the gate". */
+private fun chatAsText(title: String, messages: List<Message>, ui: ChatUi): String {
+    val time = java.text.SimpleDateFormat("d MMM HH:mm", java.util.Locale.getDefault())
+    return buildString {
+        appendLine("$title — saved from Campfire ${time.format(java.util.Date())}")
+        appendLine()
+        messages.filter { !it.deleted }.forEach { m ->
+            val body = m.poll?.let { p -> "Poll: ${p.question} " + p.options.mapIndexed { i, o -> "$o (${p.votes[i]?.size ?: 0})" }.joinToString(", ") }
+                ?: listOfNotNull(m.text.takeIf { it.isNotBlank() }, m.attachment?.let { "[${it.name}]" }).joinToString(" ")
+            appendLine("[${time.format(java.util.Date(m.at))}] ${ui.person(m.from).name}: $body")
+        }
+    }
 }

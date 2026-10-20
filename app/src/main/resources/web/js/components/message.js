@@ -20,6 +20,23 @@ function Attachment({ att }) {
   </a>`
 }
 
+// A poll: tap a choice to vote, again to take it back; the bars show how it stands.
+function Poll({ m, me }) {
+  const p = m.poll
+  const total = Object.values(p.votes || {}).reduce((n, ids) => n + ids.length, 0)
+  const mine = Object.entries(p.votes || {}).find(([, ids]) => ids.includes(me))?.[0]
+  return html`<div class="poll" onClick=${(e) => e.stopPropagation()}>
+    <b>${p.question}</b>
+    ${p.options.map((o, i) => {
+      const n = (p.votes?.[i] || []).length
+      const share = total ? Math.round((n / total) * 100) : 0
+      return html`<button class=${'opt' + (String(i) === mine ? ' mine' : '')} onClick=${() => send({ type: 'vote', msgId: m.id, option: i })}>
+        <i style=${{ width: share + '%' }}></i><span>${o}</span><span>${n}</span></button>`
+    })}
+    <small>${total === 1 ? '1 vote' : `${total} votes`}</small>
+  </div>`
+}
+
 function Preview({ p }) {
   return html`<a class="preview" href=${p.url} target="_blank" rel="noopener noreferrer" onClick=${(e) => e.stopPropagation()}>
     ${p.site && html`<small>${p.site}</small>`}
@@ -50,7 +67,7 @@ export function Message({ m, first, mine, selected, onSelect, seen, replied }) {
     ${QUICK.slice(0, 3).map((e) => html`<button aria-label=${`React ${e}`} onClick=${() => react(e)}>${e}</button>`)}
     <button aria-label="More reactions" onClick=${(e) => setState({ menu: { kind: 'emoji', msgId: m.id, x: e.currentTarget.getBoundingClientRect() } })}>${Icon.smile()}</button>
     <button aria-label="Reply" onClick=${() => { setState({ replyTo: m, editing: null }); document.getElementById('composer')?.focus() }}>${Icon.reply()}</button>
-    <button aria-label="More" onClick=${(e) => setState({ menu: { kind: 'message', msg: m, mine, canDelete, x: e.currentTarget.getBoundingClientRect() } })}>${Icon.more()}</button>
+    <button aria-label="More" onClick=${(e) => setState({ menu: { kind: 'message', msg: m, mine, canDelete, canPin: !room || s.me.isHost || isAdmin(s, room), x: e.currentTarget.getBoundingClientRect() } })}>${Icon.more()}</button>
   </div>`
 
   return html`<div id=${'m' + m.id} class=${`msg${first ? ' first' : ''}${mine ? ' mine' : ''}${selected ? ' selected' : ''}`} onClick=${() => onSelect(m.id)}>
@@ -64,7 +81,9 @@ export function Message({ m, first, mine, selected, onSelect, seen, replied }) {
           ${replied && html`<button class="quote" onClick=${(e) => { e.stopPropagation(); jumpTo(replied.id) }}>
             <b>${person(s, replied.from).name}</b><span>${replied.deleted ? 'Message deleted' : plain(replied.text) || replied.attachment?.name}</span>
           </button>`}
+          ${m.pinned && html`<div class="pinned-tag">${Icon.pin(12)} Pinned</div>`}
           ${m.attachment && html`<${Attachment} att=${m.attachment} />`}
+          ${m.poll && html`<${Poll} m=${m} me=${s.me.id} />`}
           ${m.text && html`<div class="text" dangerouslySetInnerHTML=${{ __html: renderText(m.text) }}></div>`}
           ${m.preview && html`<${Preview} p=${m.preview} />`}
           <div class="meta">${m.editedAt && html`<span>edited</span>`}<time datetime=${new Date(m.at).toISOString()}>${time(m.at)}</time></div>
