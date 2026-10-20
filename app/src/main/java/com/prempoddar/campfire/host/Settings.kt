@@ -40,6 +40,7 @@ class SettingsRepository(private val context: Context) {
         val dynamic = booleanPreferencesKey("dynamic")
         val accent = intPreferencesKey("accent")
         val black = booleanPreferencesKey("pure_black")
+        val look = stringPreferencesKey("look")
         val hostName = stringPreferencesKey("host_name")
     }
 
@@ -61,6 +62,7 @@ class SettingsRepository(private val context: Context) {
             p[Keys.theme] = next.appearance.mode.name
             p[Keys.dynamic] = next.appearance.dynamic
             p[Keys.black] = next.appearance.pureBlack
+            p[Keys.look] = next.appearance.extras()
             next.appearance.accent?.let { p[Keys.accent] = it } ?: p.remove(Keys.accent)
             p[Keys.hostName] = next.hostName
         }
@@ -78,7 +80,7 @@ class SettingsRepository(private val context: Context) {
             dynamic = this[Keys.dynamic] ?: false,
             accent = this[Keys.accent],
             pureBlack = this[Keys.black] ?: false,
-        ),
+        ).withExtras(this[Keys.look]),
         hostName = host,
     )
     }

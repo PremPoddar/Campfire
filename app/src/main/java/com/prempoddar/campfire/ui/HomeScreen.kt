@@ -2,6 +2,7 @@
 
 package com.prempoddar.campfire.ui
 
+import com.prempoddar.campfire.ui.design.tap
 import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -163,7 +164,7 @@ fun HomeScreen(onOpenChat: () -> Unit, onOpenSettings: () -> Unit) {
                 Rooms(snapshot) { confirm = Confirm.CloseRoom(it) }
                 Spacer(Modifier.height(20.dp))
                 OutlinedButton(
-                    onClick = { confirm = Confirm.End }, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(28.dp),
+                    onClick = tap { confirm = Confirm.End }, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(28.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                 ) { Text("End Campfire", style = MaterialTheme.typography.labelLarge) }
             }
@@ -190,7 +191,7 @@ fun HomeScreen(onOpenChat: () -> Unit, onOpenSettings: () -> Unit) {
             title = { Text(title) },
             text = { Text(body) },
             confirmButton = {
-                TextButton(onClick = {
+                TextButton(onClick = tap {
                     confirm = null
                     when (c) {
                         Confirm.End -> CampfireService.stop(context)
@@ -199,7 +200,7 @@ fun HomeScreen(onOpenChat: () -> Unit, onOpenSettings: () -> Unit) {
                     }
                 }) { Text(action, color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = { TextButton(onClick = { confirm = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = tap { confirm = null }) { Text("Cancel") } },
         )
     }
 }
@@ -208,7 +209,7 @@ fun HomeScreen(onOpenChat: () -> Unit, onOpenSettings: () -> Unit) {
 private fun Header(onOpenSettings: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("Campfire", style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-        FilledTonalIconButton(onClick = onOpenSettings, modifier = Modifier.size(48.dp)) { Icon(Icons.Rounded.Settings, "Settings") }
+        FilledTonalIconButton(onClick = tap(onOpenSettings), modifier = Modifier.size(48.dp)) { Icon(Icons.Rounded.Settings, "Settings") }
     }
 }
 
@@ -314,7 +315,7 @@ private fun LiveHeader(running: HostState.Running, onOpenSettings: () -> Unit) {
                 Text(if (minutes < 1) "Live · just started" else "Live · $minutes min", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        FilledTonalIconButton(onClick = onOpenSettings, modifier = Modifier.size(48.dp)) { Icon(Icons.Rounded.Settings, "Settings") }
+        FilledTonalIconButton(onClick = tap(onOpenSettings), modifier = Modifier.size(48.dp)) { Icon(Icons.Rounded.Settings, "Settings") }
     }
 }
 
@@ -349,7 +350,7 @@ private fun Invite(running: HostState.Running) {
                 "Scan, or open the link in any browser on the same network", style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
             )
-            IconButton(onClick = {
+            IconButton(onClick = tap {
                 context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Campfire link", url))
                 Toast.makeText(context, "Link copied", Toast.LENGTH_SHORT).show()
             }) { Icon(Icons.Rounded.ContentCopy, "Copy link") }
@@ -398,7 +399,7 @@ private fun People(snapshot: ChatState.Snapshot, onRemove: (MemberInfo) -> Unit)
                     Text(m.name + if (m.isHost) " (you)" else "", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(if (m.online) "Here now" else "Away", style = MaterialTheme.typography.bodyMedium, color = if (m.online) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                if (!m.isHost) IconButton(onClick = { onRemove(m) }) { Icon(Icons.Rounded.PersonRemove, "Remove ${m.name}") }
+                if (!m.isHost) IconButton(onClick = tap { onRemove(m) }) { Icon(Icons.Rounded.PersonRemove, "Remove ${m.name}") }
             }
         }
     }
@@ -410,7 +411,7 @@ private fun Rooms(snapshot: ChatState.Snapshot, onClose: (RoomInfo) -> Unit) {
         snapshot.rooms.forEach { r ->
             val online = r.members.count { id -> snapshot.members.any { it.id == id && it.online } }
             SettingsRow(r.name, "${r.members.size} members · $online here", if (r.locked) Icons.Rounded.Lock else Icons.Rounded.Tag) {
-                if (r.id != PUBLIC_ROOM) IconButton(onClick = { onClose(r) }) { Icon(Icons.Rounded.Close, "Close ${r.name}") }
+                if (r.id != PUBLIC_ROOM) IconButton(onClick = tap { onClose(r) }) { Icon(Icons.Rounded.Close, "Close ${r.name}") }
             }
         }
     }

@@ -29,6 +29,7 @@ import com.prempoddar.campfire.ui.theme.CampfireTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        com.prempoddar.campfire.ui.design.Haptics.attach(window.decorView)
         enableEdgeToEdge()
         setContent {
             val settings: HostSettings? by AppGraph.settings.settings.collectAsStateWithLifecycle(null)

@@ -1,5 +1,6 @@
 package com.prempoddar.campfire.ui.chat
 
+import com.prempoddar.campfire.ui.design.tap
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.OutlinedTextField
@@ -229,7 +230,7 @@ internal fun ConversationList(
     val people = ui.members.values.filter { it.id != me && it.online }.sortedBy { it.name }
     ExpressiveScaffold(
         ui.serverName, onBack = onBack,
-        floatingActionButton = { ExtendedFloatingActionButton(onClick = onNewRoom, icon = { Icon(Icons.Rounded.Add, null) }, text = { Text("New room") }) },
+        floatingActionButton = { ExtendedFloatingActionButton(onClick = tap(onNewRoom), icon = { Icon(Icons.Rounded.Add, null) }, text = { Text("New room") }) },
     ) { pad ->
         LazyColumn(contentPadding = PaddingValues(top = pad.calculateTopPadding(), bottom = pad.calculateBottomPadding() + 96.dp)) {
             if (ui.status != ChatUi.Status.READY) item { ConnectingBanner() }
@@ -401,7 +402,7 @@ internal fun Conversation(ui: ChatUi, client: ChatClient, connection: ChatConnec
         // Top bar
         Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
             Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 4.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (onBack != null) IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") }
+                if (onBack != null) IconButton(onClick = tap(onBack)) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") }
                 else Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f).clickable(enabled = room != null) { info = true }.padding(vertical = 4.dp)) {
                     Text(title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -412,8 +413,8 @@ internal fun Conversation(ui: ChatUi, client: ChatClient, connection: ChatConnec
                     if (sub.isNotEmpty()) Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 // The chat is gone when the Campfire ends; this keeps a copy as a text file.
-                IconButton(onClick = { saveChat.launch("$title chat.txt") }) { Icon(Icons.Rounded.SaveAlt, "Save this chat") }
-                if (room != null) IconButton(onClick = { info = true }) { Icon(Icons.Rounded.Info, "About this room") }
+                IconButton(onClick = tap { saveChat.launch("$title chat.txt") }) { Icon(Icons.Rounded.SaveAlt, "Save this chat") }
+                if (room != null) IconButton(onClick = tap { info = true }) { Icon(Icons.Rounded.Info, "About this room") }
             }
         }
         if (ui.status != ChatUi.Status.READY) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -481,7 +482,7 @@ internal fun Conversation(ui: ChatUi, client: ChatClient, connection: ChatConnec
                         Text(banner.first, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                         Text(banner.second.text.ifBlank { banner.second.attachment?.name ?: "" }, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    IconButton(onClick = { if (editing != null) { editing = null; text = "" } else replyTo = null }) { Icon(Icons.Rounded.Close, "Cancel") }
+                    IconButton(onClick = tap { if (editing != null) { editing = null; text = "" } else replyTo = null }) { Icon(Icons.Rounded.Close, "Cancel") }
                 }
             }
         }
@@ -492,26 +493,26 @@ internal fun Conversation(ui: ChatUi, client: ChatClient, connection: ChatConnec
             verticalAlignment = Alignment.Bottom,
         ) {
             Box(Modifier.padding(bottom = 4.dp)) {
-                IconButton(onClick = { attachMenu = true }) { Icon(Icons.Rounded.AddCircle, "Send a photo, video or file") }
+                IconButton(onClick = tap { attachMenu = true }) { Icon(Icons.Rounded.AddCircle, "Send a photo, video or file") }
                 DropdownMenu(attachMenu, onDismissRequest = { attachMenu = false }) {
-                    DropdownMenuItem(text = { Text("Gallery") }, leadingIcon = { Icon(Icons.Rounded.PhotoLibrary, null) }, onClick = {
+                    DropdownMenuItem(text = { Text("Gallery") }, leadingIcon = { Icon(Icons.Rounded.PhotoLibrary, null) }, onClick = tap {
                         attachMenu = false; gallery.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
                     })
-                    DropdownMenuItem(text = { Text("Take a photo") }, leadingIcon = { Icon(Icons.Rounded.PhotoCamera, null) }, onClick = {
+                    DropdownMenuItem(text = { Text("Take a photo") }, leadingIcon = { Icon(Icons.Rounded.PhotoCamera, null) }, onClick = tap {
                         attachMenu = false; runCatching { takePhoto.launch(newShot("jpg")) }.onFailure { Toast.makeText(context, "No camera app found", Toast.LENGTH_SHORT).show() }
                     })
-                    DropdownMenuItem(text = { Text("Record a video") }, leadingIcon = { Icon(Icons.Rounded.Videocam, null) }, onClick = {
+                    DropdownMenuItem(text = { Text("Record a video") }, leadingIcon = { Icon(Icons.Rounded.Videocam, null) }, onClick = tap {
                         attachMenu = false; runCatching { takeVideo.launch(newShot("mp4")) }.onFailure { Toast.makeText(context, "No camera app found", Toast.LENGTH_SHORT).show() }
                     })
-                    DropdownMenuItem(text = { Text("Any file") }, leadingIcon = { Icon(Icons.Rounded.AttachFile, null) }, onClick = { attachMenu = false; pick.launch("*/*") })
-                    DropdownMenuItem(text = { Text("Poll") }, leadingIcon = { Icon(Icons.Rounded.Poll, null) }, onClick = { attachMenu = false; makingPoll = true })
+                    DropdownMenuItem(text = { Text("Any file") }, leadingIcon = { Icon(Icons.Rounded.AttachFile, null) }, onClick = tap { attachMenu = false; pick.launch("*/*") })
+                    DropdownMenuItem(text = { Text("Poll") }, leadingIcon = { Icon(Icons.Rounded.Poll, null) }, onClick = tap { attachMenu = false; makingPoll = true })
                 }
             }
             PillTextField(
                 text, ::onText, "Message", modifier = Modifier.weight(1f), singleLine = false, clearable = false,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
             )
-            FilledIconButton(onClick = ::submit, enabled = text.isNotBlank(), modifier = Modifier.padding(start = 6.dp, bottom = 4.dp).size(52.dp)) {
+            FilledIconButton(onClick = tap(::submit), enabled = text.isNotBlank(), modifier = Modifier.padding(start = 6.dp, bottom = 4.dp).size(52.dp)) {
                 Icon(if (editing != null) Icons.Rounded.Edit else Icons.AutoMirrored.Rounded.Send, if (editing != null) "Save edit" else "Send")
             }
         }
@@ -663,7 +664,7 @@ private fun AttachmentView(a: Attachment, connection: ChatConnection, onImage: (
                 Text(a.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(size(a.size), style = MaterialTheme.typography.bodySmall)
             }
-            IconButton(onClick = onSave) { Icon(Icons.Rounded.Download, "Save ${a.name}") }
+            IconButton(onClick = tap(onSave)) { Icon(Icons.Rounded.Download, "Save ${a.name}") }
         }
     }
 }
@@ -764,10 +765,10 @@ private fun RoomSheet(ui: ChatUi, room: RoomInfo, client: ChatClient, onDismiss:
                     val muted = (m.mutedUntil ?: 0) > System.currentTimeMillis()
                     if (muted) Text("muted", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(end = 8.dp))
                     // The host can quiet someone for an hour without removing them.
-                    if (ui.me?.isHost == true && id != ui.me?.id && !m.isHost) IconButton(onClick = { client.mute(id, if (muted) 0 else 60) }) {
+                    if (ui.me?.isHost == true && id != ui.me?.id && !m.isHost) IconButton(onClick = tap { client.mute(id, if (muted) 0 else 60) }) {
                         Icon(if (muted) Icons.AutoMirrored.Rounded.VolumeUp else Icons.AutoMirrored.Rounded.VolumeOff, if (muted) "Let ${m.name} talk again" else "Mute ${m.name} for an hour")
                     }
-                    if (admin && id != ui.me?.id) IconButton(onClick = { client.removeMember(room.id, id) }) { Icon(Icons.Rounded.PersonRemove, "Remove ${m.name}") }
+                    if (admin && id != ui.me?.id) IconButton(onClick = tap { client.removeMember(room.id, id) }) { Icon(Icons.Rounded.PersonRemove, "Remove ${m.name}") }
                 }
             }
             if (room.id != "public") {
@@ -792,8 +793,8 @@ private fun NewRoomDialog(onDismiss: () -> Unit, onCreate: (String, String?) -> 
                 PillTextField(password, { password = it.take(64) }, "Password (optional)", supporting = "Only people with it can join")
             }
         },
-        confirmButton = { TextButton(enabled = name.isNotBlank(), onClick = { onCreate(name, password.ifEmpty { null }) }) { Text("Create") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(enabled = name.isNotBlank(), onClick = tap { onCreate(name, password.ifEmpty { null }) }) { Text("Create") } },
+        dismissButton = { TextButton(onClick = tap(onDismiss)) { Text("Cancel") } },
     )
 }
 
@@ -815,8 +816,8 @@ private fun PasswordDialog(roomName: String, error: String?, onDismiss: () -> Un
                 )
             }
         },
-        confirmButton = { TextButton(enabled = password.isNotEmpty(), onClick = { onJoin(password) }) { Text("Join") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(enabled = password.isNotEmpty(), onClick = tap { onJoin(password) }) { Text("Join") } },
+        dismissButton = { TextButton(onClick = tap(onDismiss)) { Text("Cancel") } },
     )
 }
 
@@ -857,11 +858,11 @@ private fun PollDialog(onDismiss: () -> Unit, onSend: (String, List<String>) -> 
                 options.forEachIndexed { i, o ->
                     OutlinedTextField(o, { options[i] = it.take(100) }, label = { Text("Choice ${i + 1}") }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
                 }
-                if (options.size < 10) TextButton(onClick = { options += "" }) { Text("Add a choice") }
+                if (options.size < 10) TextButton(onClick = tap { options += "" }) { Text("Add a choice") }
             }
         },
-        confirmButton = { TextButton(enabled = ready, onClick = { onSend(question.trim(), options.filter { it.isNotBlank() }) }) { Text("Send poll") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(enabled = ready, onClick = tap { onSend(question.trim(), options.filter { it.isNotBlank() }) }) { Text("Send poll") } },
+        dismissButton = { TextButton(onClick = tap(onDismiss)) { Text("Cancel") } },
     )
 }
 
