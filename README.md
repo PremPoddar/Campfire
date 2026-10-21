@@ -55,19 +55,7 @@ flowchart LR
     B3[Campfire app] <-- WebSocket --> S
 ```
 
-```
- host phone                                       anyone on the network
-┌──────────────────────────────────────┐         ┌───────────────────────┐
-│ Campfire app                          │  http   │ any browser           │
-│  ├─ foreground service                │◀───────▶│  index.html + ES      │
-│  │   └─ Ktor CIO server :8080         │   ws    │  modules (Preact+htm) │
-│  │        ├─ /       web client       │         └───────────────────────┘
-│  │        ├─ /ws     chat (JSON)      │
-│  │        ├─ /api/upload, /files/…    │
-│  │        └─ Hub ─▶ ChatState (rules) │
-│  └─ host's own chat in a WebView      │
-└──────────────────────────────────────┘
-```
+<p align="center"><img src=".github/assets/architecture.png" alt="The host phone runs the server; browsers and the app join over HTTP and WebSocket" width="100%"></p>
 
 - `core/ChatState` holds every rule (rooms, passwords, admins, direct messages, edits, reactions,
   receipts, typing, polls, pins) as plain Kotlin. Each command returns the events to send and who gets
@@ -77,6 +65,10 @@ flowchart LR
   with byte ranges so they seek.
 - The browser client has no build step: Preact and htm are vendored, the font is bundled, and nothing
   is loaded from the internet.
+
+## 🗂️ Project layout
+
+<p align="center"><img src=".github/assets/modules.png" alt="Campfire source packages and what each one does" width="100%"></p>
 
 ## 🔐 Privacy, honestly
 
