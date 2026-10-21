@@ -42,6 +42,9 @@
       <a href="https://github.com/PremPoddar/Campfire" class="btn-ghost"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg> View the source</a>
     </div>
     <p class="micro fade-up d3">Same Wi-Fi or your hotspot · nothing stored after it ends</p>
+    <div class="play fade-up d3" id="play"><div class="play-head"><span class="play-title">Toast a marshmallow</span><span class="play-tag">hold it over the fire</span></div>
+<canvas id="cmCanvas" height="230"></canvas>
+<div class="cm-foot"><span id="cmStatus">Move the marshmallow over the flames, then tap to eat it.</span><span id="cmCount" class="cm-count">🍡 0 eaten</span></div></div>
   </div>
 </header>
 
@@ -146,6 +149,19 @@
 .cf-m.me{align-self:flex-end}.cf-m.me p{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#2A1003;border-radius:14px 14px 4px 14px}
 .cf-sys{font:500 11px var(--mono);color:var(--muted);text-align:center;animation:pop .35s ease}
 .cf-typing{font:500 11.5px var(--body);color:var(--muted);height:16px;margin-top:6px}
+
+.play{max-width:620px;margin:42px auto 0;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:26px;padding:20px 22px;position:relative;overflow:hidden}
+.play-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.play-title{font-family:var(--display);font-weight:700;font-size:1.05rem}
+.play-tag{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent)}
+.play-note{font-size:.88rem;color:var(--muted);margin-top:10px}
+.play-btn{font:600 14px var(--body);color:var(--on-accent);background:linear-gradient(135deg,var(--accent),var(--accent-2));border:0;border-radius:999px;padding:10px 18px;cursor:pointer;transition:transform .15s}
+.play-btn:active{transform:scale(.95)}
+.play-btn.ghost{color:var(--text);background:var(--card-hover);border:1px solid var(--line)}
+
+#cmCanvas{width:100%;height:230px;display:block;border-radius:18px;background:radial-gradient(circle at 50% 100%,rgba(255,143,69,.25),transparent 60%),rgba(0,0,0,.3);cursor:none;touch-action:none}
+.cm-foot{display:flex;justify-content:space-between;gap:12px;margin-top:10px;font-size:.88rem;color:var(--muted)}
+.cm-count{font:600 12px var(--mono);color:var(--accent)}
 </style>
 <script>
 const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.12});
@@ -164,6 +180,39 @@ let i=0,here=1;function next(){if(i>=S.length){setTimeout(()=>{cfMsgs.innerHTML=
   else{d.className='cf-m'+(me?' me':'');d.innerHTML=(me?'':`<b style="color:${c}">${w}</b>`)+`<p>${t}</p>`}
   cfMsgs.appendChild(d);while(cfMsgs.children.length>7)cfMsgs.firstChild.remove();setTimeout(next,1300)}}
 setTimeout(next,700);
+</script>
+<script>
+(()=>{const c=cmCanvas,x=c.getContext('2d'),dpr=devicePixelRatio||1;let W,H=230,mx=0,my=0,toast=0,eaten=0,sparks=[],over=false;
+function size(){W=c.clientWidth;c.width=W*dpr;c.height=H*dpr;x.setTransform(dpr,0,0,dpr,0,0);mx=W*.72;my=60}
+size();addEventListener('resize',size);
+function pos(e){const r=c.getBoundingClientRect();mx=e.clientX-r.left;my=e.clientY-r.top}
+c.addEventListener('pointermove',e=>{pos(e);over=true});c.addEventListener('pointerdown',e=>{pos(e);try{c.setPointerCapture(e.pointerId)}catch(_){}});
+c.addEventListener('click',()=>{if(toast<.05)return;eaten++;cmCount.textContent=`🍡 ${eaten} eaten`;
+ cmStatus.textContent=toast>.85?'Crunchy and burnt — some people love that 😅':toast>.55?'Perfectly golden. Chef’s kiss! 🤌':'A little pale, but still yummy 😋';toast=0;
+ for(let i=0;i<14;i++)sparks.push({x:mx,y:my,vx:(Math.random()-.5)*3,vy:-Math.random()*3,l:1})});
+const fx=()=>W/2,fy=H-38;
+function mallowColor(t){const s=[[250,246,238],[244,214,150],[205,140,70],[120,70,35],[40,25,18]];const k=Math.min(3.999,t*4),i=Math.floor(k),f=k-i;
+ const a=s[i],b=s[i+1];return `rgb(${a.map((v,j)=>Math.round(v+(b[j]-v)*f)).join(',')})`}
+let last=0;
+function frame(t){const dt=Math.min(.1,(t-(last||t))/1000);last=t;x.clearRect(0,0,W,H);
+ // logs
+ x.save();x.translate(fx(),fy+18);[-.25,.25].forEach(r=>{x.save();x.rotate(r);x.fillStyle=r<0?'#8A4B2A':'#A35C35';x.beginPath();x.roundRect(-58,-8,116,16,8);x.fill();x.restore()});x.restore();
+ // flames
+ for(let i=0;i<3;i++){const h=58+Math.sin(t/180+i*2)*10,w=26-i*5,ox=(i-1)*14;const g=x.createRadialGradient(fx()+ox,fy,2,fx()+ox,fy-h/2,h);
+  g.addColorStop(0,'#FFE58A');g.addColorStop(.45,'#FF9A3D');g.addColorStop(1,'rgba(255,90,40,0)');x.fillStyle=g;x.beginPath();x.ellipse(fx()+ox,fy-h/2+6,w,h/1.6,0,0,7);x.fill()}
+ if(Math.random()<.35)sparks.push({x:fx()+(Math.random()-.5)*30,y:fy-30,vx:(Math.random()-.5)*.8,vy:-1-Math.random()*1.5,l:1});
+ sparks=sparks.filter(s=>(s.l-=.012)>0);sparks.forEach(s=>{s.x+=s.vx;s.y+=s.vy;x.fillStyle=`rgba(255,${180+Math.random()*60|0},90,${s.l})`;x.fillRect(s.x,s.y,2.4,2.4)});
+ // toasting: hotter the closer to the flame tips
+ const d=Math.hypot(mx-fx(),my-(fy-50));const heat=Math.max(0,1-d/110);toast=Math.min(1,toast+heat*dt*.28);
+ if(heat>.2&&toast<1)cmStatus.textContent=toast<.3?'Warming up…':toast<.55?'Getting toasty…':toast<.85?'Golden! Tap to eat 😋':'Uh oh, it’s catching fire! 🔥';
+ // stick and marshmallow
+ x.strokeStyle='#7a4a2a';x.lineWidth=4;x.lineCap='round';x.beginPath();x.moveTo(mx+70,my+45);x.lineTo(mx+6,my+3);x.stroke();
+ x.fillStyle=mallowColor(toast);x.beginPath();x.roundRect(mx-14,my-11,28,24,9);x.fill();
+ if(toast>.9){x.fillStyle='rgba(255,140,50,.8)';x.beginPath();x.ellipse(mx,my-16,6,10+Math.sin(t/80)*3,0,0,7);x.fill()}
+ x.fillStyle='rgba(0,0,0,.55)';x.fillRect(mx-6,my-3,3,4);x.fillRect(mx+3,my-3,3,4);
+ x.strokeStyle='rgba(0,0,0,.55)';x.lineWidth=1.6;x.beginPath();x.arc(mx,my+3,4,toast>.85?3.6:.3,toast>.85?5.8:2.8);x.stroke();
+ requestAnimationFrame(frame)}
+requestAnimationFrame(frame);})();
 </script>
 </body>
 </html>
