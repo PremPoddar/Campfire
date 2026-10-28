@@ -16,4 +16,5 @@ own code (`ScreensTest`, which also renders the tablet sizes into `app/build/scr
 
 ## Videos
 
+- `videos/Campfire FOREGROUND_SERVICE_REMOTE_MESSAGING.mp4`: the remote messaging foreground service declaration (the chat server).
 - `videos/Campfire promo.mp4`: the promo video for the store listing (Main store listing → Video), with original music. The rooms, people and messages in it are made up, drawn by the app's own screens.
