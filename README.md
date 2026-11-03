@@ -11,7 +11,7 @@
 [![Website](https://img.shields.io/badge/Website-prempoddar.github.io%2FCampfire-FF8F45)](https://prempoddar.github.io/Campfire/)
 [![Latest release](https://img.shields.io/github/v/release/PremPoddar/Campfire?label=Download&logo=android&logoColor=white&color=FF8F45)](https://github.com/PremPoddar/Campfire/releases/latest)
 
-**[Website](https://prempoddar.github.io/Campfire/)** · **[Download APK](https://github.com/PremPoddar/Campfire/releases/latest)** · **[Privacy](https://prempoddar.github.io/Campfire/privacy/)** · **[Report a problem](https://github.com/PremPoddar/Campfire/issues)**
+**[Website](https://prempoddar.github.io/Campfire/)** · **[Download APK](https://github.com/PremPoddar/Campfire/releases/latest)** · **[F-Droid repo](https://prempoddar.github.io/fdroid/repo?fingerprint=B22CDB8846EA991100C5D8DD2CBB893AF2C51B72406210B94B9F8C9B539E8BF6)** · **[Privacy](https://prempoddar.github.io/Campfire/privacy/)** · **[Report a problem](https://github.com/PremPoddar/Campfire/issues)**
 
 </div>
 
