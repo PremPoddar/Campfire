@@ -1,0 +1,14 @@
+<p><b>One phone hosts. Everyone else opens a link. No accounts, no internet, nothing left behind.</b></p>
+<p>Start a Campfire on your phone and it shows a link and a QR code. Anyone on the same Wi-Fi, or connected to your hotspot, opens it in any browser, picks a name and is chatting. When you end it, every message, room and file is gone.</p>
+<ul>
+<li><b>Public room</b> that everyone lands in, plus rooms anyone can start, optionally with a password.</li>
+<li><b>Direct messages</b> with anyone there.</li>
+<li><b>Replies and reactions</b>; edit or delete your own messages.</li>
+<li><b>Polls, pins</b> and muting.</li>
+<li><b>Voice notes</b> from the app or the browser.</li>
+<li><b>Read receipts, typing and presence.</b></li>
+<li><b>Files</b> of any kind and size; photos and videos play inline.</li>
+<li><b>Link previews</b> fetched by the host phone, so everyone sees them.</li>
+<li><b>Moderation:</b> room creators remove people from their rooms; the host can remove anyone.</li>
+<li><b>Save the chat</b> before the fire goes out.</li>
+</ul>
